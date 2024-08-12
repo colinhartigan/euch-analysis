@@ -1,4 +1,3 @@
-
 SUIT_ICONS = {2: "♡", 4: "♦", 3: "♣", 1: "♠"}
 RANKS = {
     7: "7",
@@ -10,22 +9,14 @@ RANKS = {
     13: "k",
     14: "a",
 }
-SUITS = {
-    1: "spades",
-    2: "hearts",
-    3: "clubs",
-    4: "diamonds"
+SUITS = {1: "spades", 2: "hearts", 3: "clubs", 4: "diamonds"}
+COMPLEMENTARY_SUITS = {
+    1: 3,
+    2: 4,
+    3: 1,
+    4: 2,
 }
-RANK_PRETTY = {
-    7: "7",
-    8: "8",
-    9: "9",
-    10: "10",
-    11: "J",
-    12: "Q",
-    13: "K",
-    14: "A"
-}
+RANK_PRETTY = {7: "7", 8: "8", 9: "9", 10: "10", 11: "J", 12: "Q", 13: "K", 14: "A"}
 
 
 def get_suit_id(suit: str) -> int:
@@ -43,6 +34,7 @@ class Card:
     def __init__(self, rank: int, suit: int):
         self._rank: int = rank
         self._suit: int = suit
+        self._effective_suit: int = suit
 
     def __repr__(self) -> str:
         return f"{SUIT_ICONS[self.suit]}{RANK_PRETTY[self.rank]}"
@@ -54,3 +46,7 @@ class Card:
     @property
     def suit(self) -> int:
         return self._suit
+
+    @property
+    def effective_suit(self) -> int:
+        return self._effective_suit

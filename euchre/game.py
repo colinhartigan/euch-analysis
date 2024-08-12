@@ -1,6 +1,6 @@
 import random
 
-from cards.card import SUIT_ICONS, SUITS, Card
+from cards.card import COMPLEMENTARY_SUITS, SUIT_ICONS, SUITS, Card
 from cards.deck import Deck
 
 
@@ -19,7 +19,7 @@ class Player:
 
         else:
             for card in self.hand:
-                if card.suit == lead_suit:
+                if card.effective_suit == lead_suit:
                     return card
             return random.choice(self.hand)
 
@@ -27,7 +27,10 @@ class Player:
         return random.choice([True, False])
 
     def call_trump(self) -> str:
-        return random.choice(SUITS.keys())
+        return random.choice(list(SUITS.keys()))
+    
+    def go_alone(self) -> bool:
+        return False
 
     def prompt_discard(self, flop: Card) -> Card:
         return random.choice(self.hand)
@@ -80,7 +83,7 @@ class Round:
         for player in [self.players[(self.dealer.id + i) % 4] for i in range(4)]:
             player.hand = self.deck.deal(5)
 
-        caller_id = 0
+        caller: Player = None
 
         # trump selection
         flop = self.deck.draw()
@@ -102,7 +105,8 @@ class Round:
 
                 self.deck.add(discarded)
                 player.hand.append(flop)
-                caller_id = player.id
+                caller = player                    
+
                 break
             else:
                 print(f"player {player.id} passed")
@@ -110,12 +114,22 @@ class Round:
         if not self.trump_suit:
             for player in call_order:
                 if called_suit := player.call_trump():
-                    print(f"player {player.id} called trump ({flop})")
+                    print(f"player {player.id} called trump (flop was {flop})")
                     self.trump_suit = called_suit
-                    caller_id = player.id
+                    caller = player
                     break
 
+        if caller.go_alone():
+            print(f"player {caller.id} is going alone")
+            call_order = [i for i in call_order if i != caller]
+
         print(f"trump: {SUIT_ICONS[self.trump_suit]}\n")
+
+        # check if anyone is holding the left bower and update its effective suit
+        for player in self.players:
+            for card in player.hand:
+                if card.suit == COMPLEMENTARY_SUITS[self.trump_suit] and card.rank == 11:
+                    card._effective_suit = self.trump_suit
 
         for i in range(5):
             trick = Trick(call_order, self.trump_suit)
@@ -174,12 +188,27 @@ class Trick:
 
 
         for player, card in self.pile[1:]:
-            if suit_ranks[card.suit] > suit_ranks[leader[1].suit]:
+            # jack of trump is best
+            if card.suit == self.trump_suit and card.rank == 11:
                 leader = (player, card)
+                break
+
+            # next best is jack of same color as trump suit
+            elif card.effective_suit == self.trump_suit and card.rank == 11:
+                leader = (player, card)
+
+            # check if leader is a bower
+            if leader[1].effective_suit == self.trump_suit and leader[1].rank == 11:
+                continue
+            # then high trump
+            elif suit_ranks[card.suit] > suit_ranks[leader[1].suit]:
+                leader = (player, card)
+
+            # then high lead
             elif card.suit == leader[1].suit and card.rank > leader[1].rank:
                 leader = (player, card)
 
-        reason = "high trump" if leader[1].suit == self.trump_suit else "high lead"
+        reason = "high trump" if leader[1].effective_suit == self.trump_suit else "high lead"
 
         return leader[0], reason
             
@@ -189,16 +218,16 @@ class Trick:
         for order, player in enumerate(self.players):
             print(f"player {player.id}'s turn\n{" ".join(str(card) for card in player.hand)}")
 
-            played_card: Card= player.turn(self.trump_suit, self.lead_suit, self.pile)
+            played_card: Card = player.turn(self.trump_suit, self.lead_suit, self.pile)
 
             if order == 0:
                 # first player sets the suit
-                self.lead_suit = played_card.suit
+                self.lead_suit = played_card.effective_suit
 
             if not played_card in player.hand:
                 raise ValueError("player discarded card not in hand")
 
-            elif played_card.suit != self.lead_suit and any([card.suit == self.lead_suit for card in player.hand]):
+            elif played_card.effective_suit != self.lead_suit and any([card.effective_suit == self.lead_suit for card in player.hand]):
                 raise ValueError("player played off-suit card when leading suit is available")
 
             print(f"player {player.id} played {played_card}")
