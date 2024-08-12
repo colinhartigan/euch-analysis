@@ -147,7 +147,7 @@ class Round:
             round_end = False
 
             for team in scores.keys():
-                if team == self.players[caller_id].team:
+                if team == self.players[caller.id].team:
                     if scores[team] == 5:
                         team.score += 2
                         print(f"calling team won 5 tricks, +2")
